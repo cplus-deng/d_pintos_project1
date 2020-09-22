@@ -85,7 +85,6 @@ struct thread
     /* Owned by thread.c. */
     tid_t tid;                          /* Thread identifier. */
     enum thread_status status;          /* Thread state. */
-    int64_t blocked_ticks;
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
@@ -101,6 +100,13 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+    
+    /*new members are all below*/
+    int64_t blocked_ticks;              /* Ticks of thread should be blocked through timer_sleep() */
+
+    struct lock *lock_waiting;          /* Lock that this thread is waiting for */
+    struct list locks_holding;                  /* Locks that this thread hold */
+    int old_priority;                   /* Priority before donation */
   };
 
 /* If false (default), use round-robin scheduler.

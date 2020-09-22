@@ -97,8 +97,11 @@ thread_init (void)
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
-  initial_thread->blocked_ticks=0;
   initial_thread->tid = allocate_tid ();
+  
+  initial_thread->blocked_ticks=0;
+  initial_thread->lock_waiting=NULL;
+  initial_thread->old_priority=0;
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -183,7 +186,9 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-  initial_thread->blocked_ticks=0;
+  t->blocked_ticks=0;
+  t->lock_waiting=NULL;
+  t->old_priority=0;
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -202,6 +207,7 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+  thread_yield();
 
   return tid;
 }
@@ -350,6 +356,7 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  thread_yield();
 }
 
 /* Returns the current thread's priority. */
@@ -359,7 +366,7 @@ thread_get_priority (void)
   return thread_current ()->priority;
 }
 
-/* New function.Returns true if priority of a > b*/
+/* New function.Returns true if priority of a > b. */
 int
 thread_cmp_priority (const struct list_elem *a, const struct list_elem *b, void *aux)
 {
