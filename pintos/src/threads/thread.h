@@ -105,7 +105,7 @@ struct thread
     int64_t blocked_ticks;              /* Ticks of thread should be blocked through timer_sleep() */
 
     struct lock *lock_waiting;          /* Lock that this thread is waiting for */
-    struct list locks_holding;                  /* Locks that this thread hold */
+    struct list locks_holding;          /* Locks that this thread hold */
     int old_priority;                   /* Priority before donation */
   };
 
