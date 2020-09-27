@@ -182,9 +182,8 @@ timer_interrupt (struct intr_frame *args UNUSED)
     increase_recent_cpu();
     
     if(timer_ticks () % TIMER_FREQ == 0){
-      real load=MULTIPLY_X_BY_N(update_load_avg(),2);
-      real coefficient=DIVIDE_X_BY_Y(load,ADD_X_AND_N(load,1));
-      thread_foreach (update_recent_cpu, &coefficient);
+      update_load_avg();
+      thread_foreach (update_recent_cpu, NULL);
     }
     if(timer_ticks () % 4 == 0){
       thread_foreach (update_priority, NULL);

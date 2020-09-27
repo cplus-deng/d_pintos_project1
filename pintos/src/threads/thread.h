@@ -153,7 +153,7 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 void increase_recent_cpu(void);
 void update_priority(struct thread *t,void *aux);
-real update_load_avg(void);
+void update_load_avg(void);
 void update_recent_cpu(struct thread* t,void *aux);
 
 bool thread_compare_priority (const struct list_elem *a,const struct list_elem *b,void *aux UNUSED);

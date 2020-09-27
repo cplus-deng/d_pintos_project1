@@ -1,7 +1,7 @@
 #ifndef FIXED_POINT_H
 #define FIXED_POINT_H
 
-typedef int64_t real;
+typedef int real;
 #define REAL_P 17
 #define REAL_Q 14
 #define REAL_F (1<<REAL_Q)
