@@ -573,8 +573,9 @@ next_thread_to_run (void)
     return idle_thread;
   
   else{
-    list_sort(&ready_list,thread_cmp_priority,NULL);
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+    struct list_elem *max_priority = list_min (&ready_list,thread_cmp_priority,NULL);
+    list_remove (max_priority);
+    return list_entry (max_priority, struct thread, elem);
   }
     
 }

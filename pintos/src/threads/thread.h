@@ -156,5 +156,6 @@ void update_priority(struct thread *t,void *aux);
 real update_load_avg(void);
 void update_recent_cpu(struct thread* t,void *aux);
 
+bool thread_compare_priority (const struct list_elem *a,const struct list_elem *b,void *aux UNUSED);
 #endif /* threads/thread.h */
 

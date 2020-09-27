@@ -69,7 +69,6 @@ sema_down (struct semaphore *sema)
   while (sema->value == 0) 
     {
       list_push_back (&sema->waiters, &thread_current ()->elem);
-      list_sort(&sema->waiters,thread_cmp_priority,NULL);
       thread_block ();
     }
   sema->value--;
@@ -115,9 +114,9 @@ sema_up (struct semaphore *sema)
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)){
-    list_sort(&sema->waiters,thread_cmp_priority,NULL);
-    thread_unblock (list_entry (list_pop_front (&sema->waiters),
-                                struct thread, elem));
+    struct list_elem *max_priority = list_min (&sema->waiters,thread_cmp_priority,NULL);
+    list_remove (max_priority);
+    thread_unblock (list_entry (max_priority,struct thread, elem));
   } 
   sema->value++;
   intr_set_level (old_level);
@@ -367,9 +366,9 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (lock_held_by_current_thread (lock));
 
   if (!list_empty (&cond->waiters)) {
-    list_sort(&cond->waiters,cond_cmp_priority,NULL);
-    sema_up (&list_entry (list_pop_front (&cond->waiters),
-                          struct semaphore_elem, elem)->semaphore);
+    struct list_elem *max_priority = list_min (&cond->waiters,cond_cmp_priority,NULL);
+    list_remove (max_priority);
+    sema_up (&list_entry (max_priority,struct semaphore_elem, elem)->semaphore);
   }
   thread_yield();
 }
@@ -406,7 +405,8 @@ lock_max_priority ( struct lock *lock)
 {
   if(list_empty (&lock->semaphore.waiters))
     return NULL;
-  return list_entry(list_front(&lock->semaphore.waiters),struct thread, elem)->priority;  
+  struct list_elem *max_priority = list_min (&lock->semaphore.waiters,thread_cmp_priority,NULL);
+  return list_entry(max_priority,struct thread, elem)->priority;  
 }
 /* New function.Returns the max priority of a list of threads waiting for locks. */
 int
