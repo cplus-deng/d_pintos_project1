@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/fixed_point.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -107,6 +108,8 @@ struct thread
     struct lock *lock_waiting;          /* Lock that this thread is waiting for */
     struct list locks_holding;          /* Locks that this thread hold */
     int old_priority;                   /* Priority before donation */
+    int nice;                           /* Nice of thread */
+    real recent_cpu;
   };
 
 /* If false (default), use round-robin scheduler.
@@ -148,6 +151,10 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+void increase_recent_cpu(void);
+void update_priority(struct thread *t,void *aux);
+real update_load_avg(void);
+void update_recent_cpu(struct thread* t,void *aux);
 
 #endif /* threads/thread.h */
 
