@@ -425,7 +425,7 @@ update_priority(struct thread *t,void *aux){
     t->priority=PRI_MIN;
 }
 /*  Update load_avg exactly when the system tick counter reaches a multiple of a second */
-void 
+real
 update_load_avg(void){
   int ready_threads = list_size(&ready_list);
   if (thread_current()!=idle_thread)
@@ -433,6 +433,7 @@ update_load_avg(void){
   real load1=DIVIDE_X_BY_N(MULTIPLY_X_BY_N(load_avg,59),60);
   real load2=DIVIDE_X_BY_N(CONVERT_N_TO_FIXED_POINT(ready_threads),60);
   load_avg = ADD_X_AND_Y(load1,load2);
+  return load_avg;
 }
 
 /*  Recent_cpu incremented by 1 for the running thread only, unless the idle thread is running */
@@ -440,10 +441,7 @@ void
 update_recent_cpu(struct thread* t,void *aux){
   if (t==idle_thread)
     return;
-  real fa = MULTIPLY_X_BY_N(load_avg,2);
-  real fb = MULTIPLY_X_BY_N(load_avg,2)+CONVERT_N_TO_FIXED_POINT(1);
-  t->recent_cpu = MULTIPLY_X_BY_Y(DIVIDE_X_BY_Y(fa,fb),t->recent_cpu)+
-  CONVERT_N_TO_FIXED_POINT(t->nice);
+  t->recent_cpu = MULTIPLY_X_BY_Y(*((real*)aux),t->recent_cpu)+CONVERT_N_TO_FIXED_POINT(t->nice);
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.

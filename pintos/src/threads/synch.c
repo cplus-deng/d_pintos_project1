@@ -270,7 +270,6 @@ lock_release (struct lock *lock)
   if(!thread_mlfqs){
     list_remove(&lock->elem);
     if(!list_empty (&current_thread->locks_holding)){
-      //struct lock *front_lock=list_entry (list_front (&current_thread->locks_holding), struct lock, elem);
       int max_lock_priority = lock_list_max_priority(&current_thread->locks_holding);
       if(max_lock_priority && max_lock_priority>current_thread->old_priority)
         current_thread->priority=max_lock_priority;
