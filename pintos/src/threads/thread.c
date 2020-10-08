@@ -59,6 +59,9 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
 real load_avg;
+#ifdef USERPROG
+  bool thread_start_flag=false;
+#endif
 
 static void kernel_thread (thread_func *, void *aux);
 
@@ -116,7 +119,9 @@ thread_start (void)
 
   /* Wait for the idle thread to initialize idle_thread. */
   sema_down (&idle_started);
-
+  #ifdef USERPROG
+  thread_start_flag=true;
+  #endif
 }
 
 /* Called by the timer interrupt handler at each timer tick.
@@ -217,6 +222,10 @@ thread_create (const char *name, int priority,
 void
 thread_block (void) 
 {
+  #ifdef USERPROG
+    if(!thread_start_flag)
+      return;
+  #endif
   ASSERT (!intr_context ());
   ASSERT (intr_get_level () == INTR_OFF);
 
@@ -305,6 +314,11 @@ thread_exit (void)
 void
 thread_yield (void) 
 {
+  #ifdef USERPROG
+    if(!thread_start_flag)
+      return;
+  #endif
+
   struct thread *cur = thread_current ();
   enum intr_level old_level;
   
