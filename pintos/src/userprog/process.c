@@ -468,7 +468,7 @@ setup_stack (void **esp,char * file_name)
   argv[i]=(char*) 0;//null pointer
 
   //word-align
-  i=*esp % 4;
+  i=(size_t)*esp % 4;
   if(i){
     *esp-=i;
     memset(*esp, 0, i);
