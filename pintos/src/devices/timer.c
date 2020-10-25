@@ -96,7 +96,7 @@ timer_sleep (int64_t ticks)
   enum intr_level old_level = intr_disable ();
   struct thread* current_thread=thread_current();
   current_thread->blocked_ticks=ticks;
-  thread_block();
+  thread_block_sleep();
   intr_set_level (old_level);
 }
 
@@ -176,7 +176,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
-  thread_foreach (check_thread_sleep, NULL);
+  thread_foreach_block (check_thread_sleep, NULL);
 
   if(thread_mlfqs){
     increase_recent_cpu();

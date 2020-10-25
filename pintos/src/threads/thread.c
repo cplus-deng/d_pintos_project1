@@ -23,6 +23,7 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list[64];
+static struct list block_list;
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
@@ -98,6 +99,7 @@ thread_init (void)
   for(i=0;i<64;i++)
     list_init (&ready_list[i]);
   list_init (&all_list);
+  list_init(&block_list);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -234,6 +236,21 @@ thread_block (void)
   thread_current ()->status = THREAD_BLOCKED;
   schedule ();
 }
+void
+thread_block_sleep (void) 
+{
+  struct thread * cur=thread_current ();
+  #ifdef USERPROG
+    if(!thread_start_flag)
+      return;
+  #endif
+  ASSERT (!intr_context ());
+  ASSERT (intr_get_level () == INTR_OFF);
+
+  cur->status = THREAD_BLOCKED;
+  list_push_back(&block_list,&cur->block_elem);
+  schedule ();
+}
 
 /* Transitions a blocked thread T to the ready-to-run state.
    This is an error if T is not blocked.  (Use thread_yield() to
@@ -252,6 +269,20 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
+  list_push_back (&ready_list[t->priority], &t->elem);
+  t->status = THREAD_READY;
+  intr_set_level (old_level);
+}
+void
+thread_unblock_sleep (struct thread *t) 
+{
+  enum intr_level old_level;
+
+  ASSERT (is_thread (t));
+
+  old_level = intr_disable ();
+  ASSERT (t->status == THREAD_BLOCKED);
+  list_remove(&t->block_elem);
   list_push_back (&ready_list[t->priority], &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
@@ -340,10 +371,10 @@ thread_yield (void)
 void
 check_thread_sleep (struct thread* t,void *aux) 
 {
-  if(t->status==THREAD_BLOCKED && t->blocked_ticks>0){
+  if(t->blocked_ticks>0){
     t->blocked_ticks--;
     if(t->blocked_ticks==0)
-      thread_unblock(t);
+      thread_unblock_sleep(t);
   }
 }
 /* Invoke function 'func' on all threads, passing along 'aux'.
@@ -359,6 +390,22 @@ thread_foreach (thread_action_func *func, void *aux)
        e = list_next (e))
     {
       struct thread *t = list_entry (e, struct thread, allelem);
+      func (t, aux);
+    }
+}
+/* Invoke function 'func' on all threads, passing along 'aux'.
+   This function must be called with interrupts off. */
+void
+thread_foreach_block (thread_action_func *func, void *aux)
+{
+  struct list_elem *e;
+
+  ASSERT (intr_get_level () == INTR_OFF);
+
+  for (e = list_begin (&block_list); e != list_end (&block_list);
+       e = list_next (e))
+    {
+      struct thread *t = list_entry (e, struct thread, block_elem);
       func (t, aux);
     }
 }
@@ -379,11 +426,11 @@ thread_set_priority (int new_priority)
 void
 thread_donate_priority (struct thread* t,int new_priority) 
 {
-  ASSERT (intr_get_level () == INTR_OFF);
-
+  enum intr_level old_level = intr_disable ();
   t->priority=new_priority;
   list_remove(&t->elem);
   list_push_back(&ready_list[t->priority],&t->elem);
+  intr_set_level (old_level);
 }
 
 /* Returns the current thread's priority. */
@@ -441,6 +488,7 @@ increase_recent_cpu(void){
 /*  Update priority every fourth clock tick or when nice has been updated */
 void 
 update_priority(struct thread *t,void *aux){
+  
   if (t==idle_thread)
     return;
   t->priority = CONVERT_X_TO_INTEGER_ROUND_NEAREST(CONVERT_N_TO_FIXED_POINT(PRI_MAX)-
@@ -449,13 +497,18 @@ update_priority(struct thread *t,void *aux){
     t->priority=PRI_MAX;
   if (t->priority<PRI_MIN)
     t->priority=PRI_MIN;
-  list_remove(&t->elem);
-  list_push_back(&ready_list[t->priority],&t->elem);
+
+  enum intr_level old_level = intr_disable ();  
+  if(t->status==THREAD_READY){
+    list_remove(&t->elem);
+    list_push_back(&ready_list[t->priority],&t->elem);
+  }
+  intr_set_level (old_level);
 }
 /*  Update load_avg exactly when the system tick counter reaches a multiple of a second */
 real
 update_load_avg(void){
-  int ready_threads;
+  int ready_threads=0;
   int i;
   for(i=0;i<64;i++)
     ready_threads += list_size(&ready_list[i]);
@@ -609,7 +662,7 @@ next_thread_to_run (void)
   int i;
   for(i=63;i>=0;i--){
     if(!list_empty(&ready_list[i])){
-      return list_pop_front(&ready_list[i]);
+      return list_entry(list_pop_front(&ready_list[i]),struct thread,elem);
     }
   }
   return idle_thread;
