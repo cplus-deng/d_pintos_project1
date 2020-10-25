@@ -208,7 +208,7 @@ lock_acquire (struct lock *lock)
     current_thread->lock_waiting=lock;
     
     while(holder_thread->priority < current_thread->priority){
-      holder_thread->priority=current_thread->priority;
+      thread_donate_priority(holder_thread,current_thread->priority);
       if(holder_thread->lock_waiting==NULL || holder_thread->lock_waiting->holder==NULL)
         break;
       holder_thread=holder_thread->lock_waiting->holder;

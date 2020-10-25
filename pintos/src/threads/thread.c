@@ -22,7 +22,7 @@
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
-static struct list ready_list;
+static struct list ready_list[64];
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
@@ -94,7 +94,9 @@ thread_init (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
-  list_init (&ready_list);
+  int i;
+  for(i=0;i<64;i++)
+    list_init (&ready_list[i]);
   list_init (&all_list);
 
   /* Set up a thread structure for the running thread. */
@@ -250,7 +252,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  list_push_back (&ready_list[t->priority], &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -326,7 +328,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+    list_push_back (&ready_list[cur->priority], &cur->elem);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -372,6 +374,16 @@ thread_set_priority (int new_priority)
     current_thread->priority = new_priority;
     thread_yield();
   }
+}
+
+void
+thread_donate_priority (struct thread* t,int new_priority) 
+{
+  ASSERT (intr_get_level () == INTR_OFF);
+
+  t->priority=new_priority;
+  list_remove(&t->elem);
+  list_push_back(&ready_list[t->priority],&t->elem);
 }
 
 /* Returns the current thread's priority. */
@@ -437,11 +449,16 @@ update_priority(struct thread *t,void *aux){
     t->priority=PRI_MAX;
   if (t->priority<PRI_MIN)
     t->priority=PRI_MIN;
+  list_remove(&t->elem);
+  list_push_back(&ready_list[t->priority],&t->elem);
 }
 /*  Update load_avg exactly when the system tick counter reaches a multiple of a second */
 real
 update_load_avg(void){
-  int ready_threads = list_size(&ready_list);
+  int ready_threads;
+  int i;
+  for(i=0;i<64;i++)
+    ready_threads += list_size(&ready_list[i]);
   if (thread_current()!=idle_thread)
     ready_threads++;
   real load1=DIVIDE_X_BY_N(MULTIPLY_X_BY_N(load_avg,59),60);
@@ -579,6 +596,7 @@ alloc_frame (struct thread *t, size_t size)
 static struct thread *
 next_thread_to_run (void) 
 {
+  /*
   if (list_empty (&ready_list))
     return idle_thread;
   
@@ -587,7 +605,14 @@ next_thread_to_run (void)
     list_remove (max_priority);
     return list_entry (max_priority, struct thread, elem);
   }
-    
+  */
+  int i;
+  for(i=63;i>=0;i--){
+    if(!list_empty(&ready_list[i])){
+      return list_pop_front(&ready_list[i]);
+    }
+  }
+  return idle_thread;
 }
 
 /* Completes a thread switch by activating the new thread's page
