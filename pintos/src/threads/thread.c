@@ -276,16 +276,14 @@ thread_unblock (struct thread *t)
 void
 thread_unblock_sleep (struct thread *t) 
 {
-  enum intr_level old_level;
-
   ASSERT (is_thread (t));
 
-  old_level = intr_disable ();
+  //old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
   list_remove(&t->block_elem);
   list_push_back (&ready_list[t->priority], &t->elem);
   t->status = THREAD_READY;
-  intr_set_level (old_level);
+  //intr_set_level (old_level);
 }
 
 /* Returns the name of the running thread. */
@@ -453,7 +451,9 @@ thread_set_nice (int nice UNUSED)
 {
   struct thread *current_thread = thread_current ();
   current_thread->nice = nice;
+  enum intr_level old_level = intr_disable ();  
   update_priority(current_thread,NULL);
+  intr_set_level (old_level);
   thread_yield();
 }
 
@@ -481,8 +481,9 @@ thread_get_recent_cpu (void)
 /*  Recent_cpu incremented by 1 for the running thread only, unless the idle thread is running */
 void 
 increase_recent_cpu(void){
-  if (thread_current()!=idle_thread)
-    thread_current()->recent_cpu = ADD_X_AND_N(thread_current()->recent_cpu,1);
+  struct thread *cur=thread_current();
+  if (cur!=idle_thread)
+    cur->recent_cpu = ADD_X_AND_N(cur->recent_cpu,1);
 }
 
 /*  Update priority every fourth clock tick or when nice has been updated */
@@ -491,19 +492,20 @@ update_priority(struct thread *t,void *aux){
   
   if (t==idle_thread)
     return;
-  t->priority = CONVERT_X_TO_INTEGER_ROUND_NEAREST(CONVERT_N_TO_FIXED_POINT(PRI_MAX)-
+  int new=CONVERT_X_TO_INTEGER_ROUND_NEAREST(CONVERT_N_TO_FIXED_POINT(PRI_MAX)-
     DIVIDE_X_BY_N(t->recent_cpu,4)-CONVERT_N_TO_FIXED_POINT(2*t->nice));
+  if(t->priority==new)
+    return;
+  t->priority = new;
   if (t->priority>PRI_MAX)
     t->priority=PRI_MAX;
   if (t->priority<PRI_MIN)
     t->priority=PRI_MIN;
 
-  enum intr_level old_level = intr_disable ();  
   if(t->status==THREAD_READY){
     list_remove(&t->elem);
     list_push_back(&ready_list[t->priority],&t->elem);
   }
-  intr_set_level (old_level);
 }
 /*  Update load_avg exactly when the system tick counter reaches a multiple of a second */
 real
