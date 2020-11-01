@@ -4,7 +4,6 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-#include "threads/fixed_point.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -88,12 +87,17 @@ struct thread
     enum thread_status status;          /* Thread state. */
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
+    int64_t ticks_block;                /*the thread will be block for x ticks.*/
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-    struct list_elem block_elem;              /* List element. */
+
+    int base_priority;                   //initial priority;
+    struct list locks;                    //the locks that thread hold
+    struct lock *lock_waiting;            //current lock
+
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -102,15 +106,6 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
-    
-    /*new members are all below*/
-    int64_t blocked_ticks;              /* Ticks of thread should be blocked through timer_sleep() */
-
-    struct lock *lock_waiting;          /* Lock that this thread is waiting for */
-    struct list locks_holding;          /* Locks that this thread hold */
-    int old_priority;                   /* Priority before donation */
-    int nice;                           /* Nice of thread */
-    real recent_cpu;
   };
 
 /* If false (default), use round-robin scheduler.
@@ -128,9 +123,8 @@ typedef void thread_func (void *aux);
 tid_t thread_create (const char *name, int priority, thread_func *, void *);
 
 void thread_block (void);
-void thread_block_sleep (void) ;
 void thread_unblock (struct thread *);
-void thread_unblock_sleep (struct thread *t) ;
+void blocked_thread_check(struct thread *t,void* aux UNUSED);
 
 struct thread *thread_current (void);
 tid_t thread_tid (void);
@@ -142,25 +136,19 @@ void thread_yield (void);
 /* Performs some operation on thread t, given auxiliary data AUX. */
 typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
-void thread_foreach_block (thread_action_func *func, void *aux);
 
-/*new function*/
-void check_thread_sleep (struct thread* t,void *aux);
-
+bool thread_cmp_priority(const struct list_elem *a,const struct list_elem *b,void *aux);
 int thread_get_priority (void);
 void thread_set_priority (int);
-void thread_donate_priority (struct thread* t,int new_priority) ;
-int thread_cmp_priority (const struct list_elem *a, const struct list_elem *b, void *aux);
 
 int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-void increase_recent_cpu(void);
-void update_priority(struct thread *t,void *aux);
-real update_load_avg(void);
-void update_recent_cpu(struct thread* t,void *aux);
-
+void thread_hold_the_lock(struct lock* lock);
+void thread_donate_priority(struct thread* t);
+bool lock_cmp_priority(const struct list_elem *a,const struct list_elem *b,void *aux UNUSED);
+void thread_remove_lock(struct lock* lock);
+void thread_update_priority(struct thread *t);
 #endif /* threads/thread.h */
-

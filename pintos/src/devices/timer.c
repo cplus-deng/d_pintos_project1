@@ -87,18 +87,26 @@ timer_elapsed (int64_t then)
 /* Sleeps for approximately TICKS timer ticks.  Interrupts must
    be turned on. */
 void
+timer_sleep (int64_t ticks)
+{
+  if(ticks<=0) return;
+  ASSERT (intr_get_level () == INTR_ON);
+  enum intr_level old_level=intr_disable();
+  struct thread* current_thread=thread_current();
+  current_thread->ticks_block=ticks;
+  thread_block();
+  intr_set_level(old_level);
+
+}
+/*void
 timer_sleep (int64_t ticks) 
 {
-  if(ticks<=0)
-    return;
+  int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  enum intr_level old_level = intr_disable ();
-  struct thread* current_thread=thread_current();
-  current_thread->blocked_ticks=ticks;
-  thread_block_sleep();
-  intr_set_level (old_level);
-}
+  while (timer_elapsed (start) < ticks) 
+    thread_yield ();
+}*/
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
    turned on. */
@@ -174,23 +182,9 @@ timer_print_stats (void)
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
+  thread_foreach(blocked_thread_check,NULL);
   ticks++;
   thread_tick ();
-  thread_foreach_block (check_thread_sleep, NULL);
-
-  if(thread_mlfqs){
-    increase_recent_cpu();
-    
-    if(timer_ticks () % 4 == 0){
-      thread_foreach (update_priority, NULL);
-    }
-    if(timer_ticks () % TIMER_FREQ == 0){
-      real load=MULTIPLY_X_BY_N(update_load_avg(),2);
-      real coefficient=DIVIDE_X_BY_Y(load,ADD_X_AND_N(load,1));
-      thread_foreach (update_recent_cpu, &coefficient);
-    }
-    
-  }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

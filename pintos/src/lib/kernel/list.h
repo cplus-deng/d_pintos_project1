@@ -85,7 +85,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
 /* List element. */
 struct list_elem 
   {
@@ -173,7 +172,6 @@ void list_insert_ordered (struct list *, struct list_elem *,
                           list_less_func *, void *aux);
 void list_unique (struct list *, struct list *duplicates,
                   list_less_func *, void *aux);
-
 /* Max and min. */
 struct list_elem *list_max (struct list *, list_less_func *, void *aux);
 struct list_elem *list_min (struct list *, list_less_func *, void *aux);
